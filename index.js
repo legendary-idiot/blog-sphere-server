@@ -90,10 +90,15 @@ async function run() {
       const blogs = await blogsCollection.find(query).toArray();
       res.send(blogs);
     });
+
     // CRUD Operation for Wishlists
-    app.get("/wishlists/:email", async (req, res) => {
-      const email = req.params.email;
-      const result = await wishlistCollection.find({ email }).toArray();
+    app.get("/wishlists", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if (email) {
+        query.email = email;
+      }
+      const result = await wishlistCollection.find(query).toArray();
       res.send(result);
     });
     app.post("/wishlists", async (req, res) => {
@@ -105,6 +110,38 @@ async function run() {
       }
       const result = await wishlistCollection.insertOne(wishlist);
       res.send(result);
+    });
+    app.delete("/wishlists/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // Get Featured Blogs
+    app.get("/featured-blogs", async (req, res) => {
+      const blogs = await blogsCollection
+        .aggregate([
+          {
+            $addFields: {
+              contentLength: { $strLenCP: "$postDescription" },
+            },
+          },
+          {
+            $match: {
+              contentLength: { $gt: 0 },
+            },
+          },
+          {
+            $sort: { contentLength: -1 },
+          },
+          {
+            $limit: 5,
+          },
+        ])
+        .toArray();
+
+      res.send(blogs);
     });
   } finally {
     // Ensures that the client will close when you finish/error
